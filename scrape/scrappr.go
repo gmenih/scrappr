@@ -15,26 +15,26 @@ const siteURL = "https://www.nepremicnine.net/oglasi-prodaja/podravska/maribor/h
 const baseURL = "https://www.nepremicnine.net"
 
 type house struct {
-	id               int32
-	title            string
-	priceCents       float32
-	area             float32
-	image            string
-	shortDescription string
-	longDescription  string
-	date             time.Time
+	ID               int32     `datastore:"id"`
+	Title            string    `datastore:"title"`
+	PriceCents       float32   `datastore:"priceCents"`
+	Area             float32   `datastore:"area"`
+	Image            string    `datastore:"image,noindex"`
+	ShortDescription string    `datastore:"shortDescription,noindex"`
+	LongDescription  string    `datastore:"longDescription,noindex"`
+	Date             time.Time `datastore:"date"`
 }
 
 func (a house) toRow() []interface{} {
 	return []interface{}{
-		a.id,
-		a.title,
-		a.priceCents,
-		a.area,
-		a.image,
-		a.shortDescription,
-		a.longDescription,
-		a.date.Format("02.01.2006"),
+		a.ID,
+		a.Title,
+		a.PriceCents,
+		a.Area,
+		a.Image,
+		a.ShortDescription,
+		a.LongDescription,
+		a.Date.Format("02.01.2006"),
 	}
 }
 
@@ -76,7 +76,7 @@ func ScrapeHouses(ctx context.Context) {
 		Delay:       time.Second * 100,
 		Parallelism: 1,
 	})
-	sheet := newOp(ctx)
+	store := newStore(ctx)
 
 	pageScraper.OnHTML(".teksti_container[data-href]", func(el *colly.HTMLElement) {
 		apartmentURL := el.Attr("data-href")
@@ -118,22 +118,22 @@ func ScrapeHouses(ctx context.Context) {
 		logrus.Infof("House[%s]: %s", idString, title)
 
 		a := house{
-			title:            title,
-			shortDescription: shortDescription,
-			longDescription:  longDescription,
-			image:            thumbnailURL,
-			area:             parseArea(shortDescription),
-			date:             time.Now(),
+			Title:            title,
+			ShortDescription: shortDescription,
+			LongDescription:  longDescription,
+			Image:            thumbnailURL,
+			Area:             parseArea(shortDescription),
+			Date:             time.Now(),
 		}
 
-		fmt.Sscanf(price, "%f", &a.priceCents)
-		fmt.Sscanf(idString, "%d", &a.id)
+		fmt.Sscanf(price, "%f", &a.PriceCents)
+		fmt.Sscanf(idString, "%d", &a.ID)
 		if strings.Contains(priceText, "m2") {
-			a.priceCents = a.priceCents * a.area
+			a.PriceCents = a.PriceCents * a.Area
 		}
 
-		logrus.Infof("Storing house %d", a.id)
-		sheet.storeApartment(a)
+		logrus.Infof("Storing house %d", a.ID)
+		store.storeApartment(a)
 	})
 
 	if err := pageScraper.Visit(siteURL); err != nil {

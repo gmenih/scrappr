@@ -5,6 +5,7 @@ go 1.14
 require github.com/gocolly/colly/v2 v2.0.1
 
 require (
+	cloud.google.com/go/datastore v1.1.0
 	github.com/e-asphyx/goauth2 v0.0.0-20140906170706-8c7b07324fc5 // indirect
 	github.com/google/logger v1.1.0
 	github.com/sirupsen/logrus v1.6.0
