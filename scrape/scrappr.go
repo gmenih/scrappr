@@ -14,30 +14,6 @@ import (
 const siteURL = "https://www.nepremicnine.net/oglasi-prodaja/podravska/maribor/hisa/"
 const baseURL = "https://www.nepremicnine.net"
 
-type house struct {
-	ID               int32     `datastore:"id"`
-	Title            string    `datastore:"title"`
-	PriceCents       float32   `datastore:"priceCents"`
-	Area             float32   `datastore:"area"`
-	Image            string    `datastore:"image,noindex"`
-	ShortDescription string    `datastore:"shortDescription,noindex"`
-	LongDescription  string    `datastore:"longDescription,noindex"`
-	Date             time.Time `datastore:"date"`
-}
-
-func (a house) toRow() []interface{} {
-	return []interface{}{
-		a.ID,
-		a.Title,
-		a.PriceCents,
-		a.Area,
-		a.Image,
-		a.ShortDescription,
-		a.LongDescription,
-		a.Date.Format("02.01.2006"),
-	}
-}
-
 func parseArea(description string) float32 {
 	r, err := regexp.Compile(`(\d+(,\d+)?) m2`)
 	if err != nil {
@@ -60,25 +36,26 @@ func ScrapeHouses(ctx context.Context) {
 	logrus.Infof("Starting to scrape")
 	count := 0
 
-	pageScraper := colly.NewCollector(
+	pageColly := colly.NewCollector(
 		colly.UserAgent("AmigaBot (rstate v5.2)"),
 	)
 
-	pageScraper.Limit(&colly.LimitRule{
+	pageColly.Limit(&colly.LimitRule{
 		Delay:       time.Second * 100,
 		Parallelism: 1,
 	})
 
-	apartmentScraper := colly.NewCollector(
+	realestateColly := colly.NewCollector(
+		// Random user agent to be a bit less obvious that we're scraping 🙈
 		colly.UserAgent("AmigaBot (rstate v5.2)"),
 	)
-	apartmentScraper.Limit(&colly.LimitRule{
+	realestateColly.Limit(&colly.LimitRule{
 		Delay:       time.Second * 100,
 		Parallelism: 1,
 	})
 	store := newStore(ctx)
 
-	pageScraper.OnHTML(".teksti_container[data-href]", func(el *colly.HTMLElement) {
+	pageColly.OnHTML(".teksti_container[data-href]", func(el *colly.HTMLElement) {
 		apartmentURL := el.Attr("data-href")
 
 		if strings.Index(apartmentURL, "/oglasi-prodaja") != 0 {
@@ -87,19 +64,19 @@ func ScrapeHouses(ctx context.Context) {
 		}
 
 		logrus.Infof("Matched house. Visiting %s", apartmentURL)
-		if err := apartmentScraper.Visit(el.Request.AbsoluteURL(apartmentURL)); err != nil {
+		if err := realestateColly.Visit(el.Request.AbsoluteURL(apartmentURL)); err != nil {
 			logrus.Errorf("Fucking error! %v", err)
 		}
 	})
 
-	pageScraper.OnHTML(".headbar > #pagination > ul > li.paging_next > a.next", func(el *colly.HTMLElement) {
+	pageColly.OnHTML(".headbar > #pagination > ul > li.paging_next > a.next", func(el *colly.HTMLElement) {
 		pageURL := el.Attr("href")
 		logrus.Debugf("Matched page. Visiting %s", pageURL)
 
 		el.Request.Visit(el.Request.AbsoluteURL(pageURL))
 	})
 
-	apartmentScraper.OnHTML("div[itemprop=mainEntity][id]", func(el *colly.HTMLElement) {
+	realestateColly.OnHTML("div[itemprop=mainEntity][id]", func(el *colly.HTMLElement) {
 		idRxp := regexp.MustCompile(`(\d+)\/$`)
 		groups := idRxp.FindAllStringSubmatch(el.Request.URL.Path, -1)
 		if len(groups) != 1 || groups[0][1] == "" {
@@ -115,9 +92,9 @@ func ScrapeHouses(ctx context.Context) {
 		shortDescription := el.ChildText("div.kratek")
 		thumbnailURL := el.ChildAttr("meta[itemprop=image]", "content")
 		longDescription := el.ChildText("div[itemprop=disambiguatingDescription]")
-		logrus.Infof("House[%s]: %s", idString, title)
 
-		a := house{
+		r := realestate{
+			ID:               idString,
 			Title:            title,
 			ShortDescription: shortDescription,
 			LongDescription:  longDescription,
@@ -126,21 +103,20 @@ func ScrapeHouses(ctx context.Context) {
 			Date:             time.Now(),
 		}
 
-		fmt.Sscanf(price, "%f", &a.PriceCents)
-		fmt.Sscanf(idString, "%d", &a.ID)
+		fmt.Sscanf(price, "%f", &r.Price)
 		if strings.Contains(priceText, "m2") {
-			a.PriceCents = a.PriceCents * a.Area
+			r.Price = r.Price * r.Area
 		}
 
-		logrus.Infof("Storing house %d", a.ID)
-		store.storeApartment(a)
+		logrus.Infof("Storing realestate %s", r.ID)
+		store.storeRealestate(r)
 	})
 
-	if err := pageScraper.Visit(siteURL); err != nil {
+	if err := pageColly.Visit(siteURL); err != nil {
 		logrus.Errorf("Failed to visit %s! Error: %v", siteURL, err)
 	}
 
-	pageScraper.Wait()
-	apartmentScraper.Wait()
+	pageColly.Wait()
+	realestateColly.Wait()
 	logrus.Infof("Found %d apts", count)
 }

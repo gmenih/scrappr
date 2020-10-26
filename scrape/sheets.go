@@ -9,15 +9,17 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-type sheetsOp struct {
+type sheetsSvc struct {
+	// Rate limited service
+	*rate.Limiter
 	svc *sheets.Service
-	lim *rate.Limiter
 }
 
+// Please don't hack me
 const sheetID = "1wB-bJrtygi3Tab8n9XZgwINjHIqG-K4O_2j0QJggP18"
 const dumpRange = "Dump!A2"
 
-func newOp(ctx context.Context) *sheetsOp {
+func newSheets(ctx context.Context) *sheetsSvc {
 	client, err := google.DefaultClient(ctx, sheets.SpreadsheetsScope)
 	limiter := rate.NewLimiter(1, 1)
 
@@ -26,22 +28,22 @@ func newOp(ctx context.Context) *sheetsOp {
 		logrus.Fatalf("Failed to create sheets client. Err: %v", err)
 	}
 
-	return &sheetsOp{sheetsService, limiter}
+	return &sheetsSvc{limiter, sheetsService}
 }
 
-func (so *sheetsOp) storeApartment(ap house) {
-	if !so.lim.Allow() {
+func (svc *sheetsSvc) storeRealestate(re realestate) {
+	if !svc.Allow() {
 		logrus.Warning("Waiting for Google API limit")
 	}
 
-	if err := so.lim.Wait(context.Background()); err != nil {
+	if err := svc.Wait(context.Background()); err != nil {
 		logrus.Errorf("Failed to wait for rate limiter. Error: %v", err)
 	}
 
-	logrus.Debug("Storing apartment")
+	logrus.Debug("Storing [%s]: %s", re.ID, re.Title)
 	vr := sheets.ValueRange{}
-	vr.Values = append(vr.Values, ap.toRow())
-	_, err := so.svc.Spreadsheets.Values.Append(sheetID, dumpRange, &vr).ValueInputOption("USER_ENTERED").Do()
+	vr.Values = append(vr.Values, re.toRow())
+	_, err := svc.svc.Spreadsheets.Values.Append(sheetID, dumpRange, &vr).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		logrus.Errorf("Failed to write! Err: %v", err)
 	}
