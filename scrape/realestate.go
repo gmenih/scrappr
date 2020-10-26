@@ -31,9 +31,9 @@ func (re realestate) toRow() []interface{} {
 }
 
 type realestatePrice struct {
-	ID         string  `datastore:"id"`
-	PriceCents float32 `datastore:"priceCents"`
-	Date       time.Time
+	ID    string  `datastore:"id"`
+	Price float32 `datastore:"price"`
+	Date  time.Time
 }
 
 func (rp realestatePrice) entityName() string {

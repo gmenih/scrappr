@@ -16,7 +16,10 @@ type datastoreSvc struct {
 }
 
 func newStore(ctx context.Context) *datastoreSvc {
-	dsClient, err := datastore.NewClient(ctx, os.Getenv("GCP_PROJECT"))
+	projectID := os.Getenv("GCP_PROJECT")
+	logrus.Infof("Running in project %s", projectID)
+
+	dsClient, err := datastore.NewClient(ctx, projectID)
 	// n, m = n requests every m seconds
 	limiter := rate.NewLimiter(50, 1)
 
