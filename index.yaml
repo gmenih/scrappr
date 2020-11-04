@@ -1,0 +1,10 @@
+indexes:
+- kind: price
+  properties:
+  - name: id
+  - name: createdAt
+
+- kind: price
+  properties:
+  - name: id
+  - name: price

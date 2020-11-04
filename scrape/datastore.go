@@ -8,15 +8,17 @@ import (
 	"cloud.google.com/go/datastore"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
+	"google.golang.org/api/iterator"
 )
 
 type datastoreSvc struct {
 	*rate.Limiter
 	client *datastore.Client
+	ctx    context.Context
 }
 
 func newStore(ctx context.Context) *datastoreSvc {
-	projectID := os.Getenv("GCP_PROJECT")
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	logrus.Infof("Running in project %s", projectID)
 
 	dsClient, err := datastore.NewClient(ctx, projectID)
@@ -27,7 +29,7 @@ func newStore(ctx context.Context) *datastoreSvc {
 		logrus.Fatalf("Failed to create sheets client. Err: %v", err)
 	}
 
-	return &datastoreSvc{limiter, dsClient}
+	return &datastoreSvc{limiter, dsClient, ctx}
 }
 
 func (svc *datastoreSvc) wait() {
@@ -35,7 +37,7 @@ func (svc *datastoreSvc) wait() {
 		logrus.Warning("Waiting for Google API limit")
 	}
 
-	if err := svc.Wait(context.Background()); err != nil {
+	if err := svc.Wait(svc.ctx); err != nil {
 		logrus.Errorf("Failed to wait for rate limiter. Error: %v", err)
 	}
 }
@@ -45,7 +47,7 @@ func (svc *datastoreSvc) findByID(ID string) (*realestate, error) {
 
 	re := &realestate{}
 	key := datastore.NameKey(re.entityName(), ID, nil)
-	if err := svc.client.Get(context.Background(), key, re); err != nil {
+	if err := svc.client.Get(svc.ctx, key, re); err != nil {
 		if err.Error() == "datastore: no such entity" {
 			return nil, nil
 		}
@@ -56,16 +58,35 @@ func (svc *datastoreSvc) findByID(ID string) (*realestate, error) {
 	return re, nil
 }
 
+func (svc *datastoreSvc) entityHasPrice(ID string, value float32) bool {
+	var rp price
+	query := datastore.NewQuery(rp.entityName()).
+		Filter("id =", ID).
+		Filter("price =", value).
+		KeysOnly()
+
+	it := svc.client.Run(svc.ctx, query)
+	_, err := it.Next(&rp)
+
+	if err == nil || err == iterator.Done {
+		return false
+	} else if err != nil {
+		logrus.Errorf("Failed to check price existence. Error: %v", err)
+	}
+
+	return true
+}
+
 func (svc *datastoreSvc) storePrice(re realestate) {
-	svc.wait()
+	if !svc.entityHasPrice(re.ID, re.Price) {
+		logrus.Infof("[DS] Storing price for %s, %f", re.ID, re.Price)
+		parent := datastore.NameKey(re.entityName(), re.ID, nil)
+		rp := price{re.ID, re.Price, re.Date}
+		key := datastore.NameKey(rp.entityName(), "", parent)
 
-	logrus.Debugf("[DS] Storing price for %s, %d", re.ID, re.Price)
-
-	parent := datastore.NameKey(re.entityName(), re.ID, nil)
-	rp := realestatePrice{re.ID, re.Price, re.Date}
-	key := datastore.NameKey(rp.entityName(), "", parent)
-	if _, err := svc.client.Put(context.Background(), key, &rp); err != nil {
-		logrus.Errorf("Failed to store apartment. Err: %v", err)
+		if _, err := svc.client.Put(svc.ctx, key, &rp); err != nil {
+			logrus.Errorf("Failed to store price. Err: %v", err)
+		}
 	}
 }
 
@@ -76,13 +97,14 @@ func (svc *datastoreSvc) storeRealestate(re realestate) {
 
 	matched, err := svc.findByID(re.ID)
 	if err != nil {
-		logrus.Errorf("Failed to find an existing apartment")
+		logrus.Errorf("Failed to find an existing relestate")
 	}
 
 	if matched == nil {
+		logrus.Infof("Storing relestate %s", re.ID)
 		key := datastore.NameKey(re.entityName(), re.ID, nil)
-		if _, err := svc.client.Put(context.Background(), key, &re); err != nil {
-			logrus.Errorf("Failed to store apartment. Err: %v", err)
+		if _, err := svc.client.Put(svc.ctx, key, &re); err != nil {
+			logrus.Errorf("Failed to store relestate. Err: %v", err)
 		}
 	}
 

@@ -11,8 +11,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const siteURL = "https://www.nepremicnine.net/oglasi-prodaja/podravska/maribor/hisa/"
 const baseURL = "https://www.nepremicnine.net"
+
+type FunctionMessage struct {
+	URL  string `json:"url"`
+	Type string `json:"type"`
+}
 
 func parseArea(description string) float32 {
 	r, err := regexp.Compile(`(\d+(,\d+)?) m2`)
@@ -26,13 +30,13 @@ func parseArea(description string) float32 {
 	return area
 }
 
-func visitUrl(c *colly.Collector, apartmentURL string) {
-	if err := c.Visit(baseURL + apartmentURL); err != nil {
-		logrus.Errorf("Failed to visit %s, Err: %+v", apartmentURL, err)
+func visitUrl(c *colly.Collector, entityURL string) {
+	if err := c.Visit(baseURL + entityURL); err != nil {
+		logrus.Errorf("Failed to visit %s, Err: %+v", entityURL, err)
 	}
 }
 
-func ScrapeHouses(ctx context.Context) {
+func ScrapeRealestate(ctx context.Context, message FunctionMessage) {
 	logrus.Infof("Starting to scrape")
 	count := 0
 
@@ -56,15 +60,15 @@ func ScrapeHouses(ctx context.Context) {
 	store := newStore(ctx)
 
 	pageColly.OnHTML(".teksti_container[data-href]", func(el *colly.HTMLElement) {
-		apartmentURL := el.Attr("data-href")
+		entityURL := el.Attr("data-href")
 
-		if strings.Index(apartmentURL, "/oglasi-prodaja") != 0 {
-			logrus.Warningf("Skipping bot trap link %s", apartmentURL)
+		if strings.Index(entityURL, "/oglasi-prodaja") != 0 {
+			logrus.Warningf("Skipping bot trap link %s", entityURL)
 			return
 		}
 
-		logrus.Infof("Matched house. Visiting %s", apartmentURL)
-		if err := realestateColly.Visit(el.Request.AbsoluteURL(apartmentURL)); err != nil {
+		logrus.Infof("Matched entity - visiting %s", entityURL)
+		if err := realestateColly.Visit(el.Request.AbsoluteURL(entityURL)); err != nil {
 			logrus.Errorf("Fucking error! %v", err)
 		}
 	})
@@ -101,6 +105,7 @@ func ScrapeHouses(ctx context.Context) {
 			Image:            thumbnailURL,
 			Area:             parseArea(shortDescription),
 			Date:             time.Now(),
+			Type:             message.Type,
 		}
 
 		fmt.Sscanf(price, "%f", &r.Price)
@@ -108,12 +113,11 @@ func ScrapeHouses(ctx context.Context) {
 			r.Price = r.Price * r.Area
 		}
 
-		logrus.Infof("Storing realestate %s", r.ID)
 		store.storeRealestate(r)
 	})
 
-	if err := pageColly.Visit(siteURL); err != nil {
-		logrus.Errorf("Failed to visit %s! Error: %v", siteURL, err)
+	if err := pageColly.Visit(message.URL); err != nil {
+		logrus.Errorf("Failed to visit %s! Error: %v", message.URL, err)
 	}
 
 	pageColly.Wait()
