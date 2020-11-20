@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gmenih341/scrappr/realestate"
 	"github.com/gocolly/colly/v2"
 	"github.com/sirupsen/logrus"
 )
@@ -57,7 +58,7 @@ func ScrapeRealestate(ctx context.Context, message FunctionMessage) {
 		Delay:       time.Second * 100,
 		Parallelism: 1,
 	})
-	store := newStore(ctx)
+	realestateService := realestate.NewService(ctx)
 
 	pageColly.OnHTML(".teksti_container[data-href]", func(el *colly.HTMLElement) {
 		entityURL := el.Attr("data-href")
@@ -97,7 +98,7 @@ func ScrapeRealestate(ctx context.Context, message FunctionMessage) {
 		thumbnailURL := el.ChildAttr("meta[itemprop=image]", "content")
 		longDescription := el.ChildText("div[itemprop=disambiguatingDescription]")
 
-		r := realestate{
+		r := realestate.RealestateEntity{
 			ID:               idString,
 			Title:            title,
 			ShortDescription: shortDescription,
@@ -113,7 +114,7 @@ func ScrapeRealestate(ctx context.Context, message FunctionMessage) {
 			r.Price = r.Price * r.Area
 		}
 
-		store.storeRealestate(r)
+		realestateService.StoreRealestate(r)
 	})
 
 	if err := pageColly.Visit(message.URL); err != nil {
@@ -122,5 +123,5 @@ func ScrapeRealestate(ctx context.Context, message FunctionMessage) {
 
 	pageColly.Wait()
 	realestateColly.Wait()
-	logrus.Infof("Found %d apts", count)
+	logrus.Infof("Found %d entities", count)
 }

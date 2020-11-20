@@ -1,10 +1,10 @@
-package scrape
+package realestate
 
 import "time"
 
 type RealestateType string
 
-type realestate struct {
+type RealestateEntity struct {
 	ID               string    `datastore:"id"`
 	Title            string    `datastore:"title"`
 	Price            float32   `datastore:"-"`
@@ -16,11 +16,11 @@ type realestate struct {
 	Date             time.Time `datastore:"date"`
 }
 
-func (re realestate) entityName() string {
+func (re RealestateEntity) entityName() string {
 	return "realestate"
 }
 
-func (re realestate) toRow() []interface{} {
+func (re RealestateEntity) toRow() []interface{} {
 	return []interface{}{
 		re.ID,
 		re.Title,
@@ -33,12 +33,12 @@ func (re realestate) toRow() []interface{} {
 	}
 }
 
-type price struct {
+type PriceEntity struct {
 	ID        string    `datastore:"id"`
 	Price     float32   `datastore:"price"`
 	CreatedAt time.Time `datastore:"createdAt"`
 }
 
-func (rp price) entityName() string {
+func (rp PriceEntity) entityName() string {
 	return "price"
 }
