@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gmenih341/scrappr/realestate"
+	"github.com/gmenih341/scrappr/src/realestate"
 	"github.com/gocolly/colly/v2"
 	"github.com/sirupsen/logrus"
 )

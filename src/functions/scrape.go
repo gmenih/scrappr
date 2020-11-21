@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/gmenih341/scrappr/scrape"
+	"github.com/gmenih341/scrappr/src/scrape"
 	"github.com/sirupsen/logrus"
 )
 

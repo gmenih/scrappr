@@ -3,6 +3,7 @@ package realestate
 import (
 	"context"
 	"os"
+	"time"
 
 	"cloud.google.com/go/datastore"
 	"github.com/sirupsen/logrus"
@@ -85,4 +86,32 @@ func (svc *service) StoreRealestate(re RealestateEntity) {
 	}
 
 	svc.storePrice(re)
+}
+
+func (svc *service) queryPricesBetweenDates(from, to time.Time) ([]PriceEntity, error) {
+	query := datastore.NewQuery(PriceEntity{}.entityName()).
+		Filter("createdAt >=", from).
+		Filter("createdAt <=", to)
+
+	var prices []PriceEntity
+	it := svc.client.Run(svc.ctx, query)
+	for {
+		var price PriceEntity
+		_, err := it.Next(&price)
+		if err == iterator.Done {
+			break
+		}
+
+		prices = append(prices, price)
+	}
+
+	return prices, nil
+}
+
+func (svc *service) GetDailyPrices() (DailyPriceResponse, error) {
+	// prices, err := svc.queryPricesBetweenDates(time.Now())
+	// if err != nil {
+	// 	return DailyPriceResponse{}, err
+	// }
+	return DailyPriceResponse{}, nil
 }

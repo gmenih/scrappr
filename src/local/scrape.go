@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	p "github.com/gmenih341/scrappr"
-	"github.com/gmenih341/scrappr/scrape"
+	p "github.com/gmenih341/scrappr/src/functions"
+	"github.com/gmenih341/scrappr/src/scrape"
 )
 
 func main() {

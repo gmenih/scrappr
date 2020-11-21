@@ -20,7 +20,7 @@ func (re RealestateEntity) entityName() string {
 	return "realestate"
 }
 
-func (re RealestateEntity) toRow() []interface{} {
+func (re RealestateEntity) ToRow() []interface{} {
 	return []interface{}{
 		re.ID,
 		re.Title,

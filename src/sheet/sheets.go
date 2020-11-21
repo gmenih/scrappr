@@ -1,25 +1,25 @@
-package scrape
+package sheet
 
 import (
 	"context"
+	"os"
 
+	"github.com/gmenih341/scrappr/src/realestate"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/time/rate"
 	"google.golang.org/api/sheets/v4"
 )
 
-type sheetsSvc struct {
-	// Rate limited service
+type sheetService struct {
 	*rate.Limiter
-	svc *sheets.Service
+	*sheets.Service
+	sheetID string
 }
 
-// Please don't hack me
-const sheetID = "1wB-bJrtygi3Tab8n9XZgwINjHIqG-K4O_2j0QJggP18"
 const dumpRange = "Dump!A2"
 
-func newSheets(ctx context.Context) *sheetsSvc {
+func NewService(ctx context.Context) *sheetService {
 	client, err := google.DefaultClient(ctx, sheets.SpreadsheetsScope)
 	limiter := rate.NewLimiter(1, 1)
 
@@ -28,10 +28,14 @@ func newSheets(ctx context.Context) *sheetsSvc {
 		logrus.Fatalf("Failed to create sheets client. Err: %v", err)
 	}
 
-	return &sheetsSvc{limiter, sheetsService}
+	return &sheetService{
+		limiter,
+		sheetsService,
+		os.Getenv("SPREADSHEET_ID"),
+	}
 }
 
-func (svc *sheetsSvc) storeRealestate(re realestate) {
+func (svc *sheetService) StoreRealestate(re realestate.RealestateEntity) {
 	if !svc.Allow() {
 		logrus.Warning("Waiting for Google API limit")
 	}
@@ -40,10 +44,10 @@ func (svc *sheetsSvc) storeRealestate(re realestate) {
 		logrus.Errorf("Failed to wait for rate limiter. Error: %v", err)
 	}
 
-	logrus.Debug("Storing [%s]: %s", re.ID, re.Title)
+	logrus.Debugf("Storing [%s]: %s", re.ID, re.Title)
 	vr := sheets.ValueRange{}
-	vr.Values = append(vr.Values, re.toRow())
-	_, err := svc.svc.Spreadsheets.Values.Append(sheetID, dumpRange, &vr).ValueInputOption("USER_ENTERED").Do()
+	vr.Values = append(vr.Values, re.ToRow())
+	_, err := svc.Spreadsheets.Values.Append(svc.sheetID, dumpRange, &vr).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		logrus.Errorf("Failed to write! Err: %v", err)
 	}
