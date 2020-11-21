@@ -1,3 +1,6 @@
-*.zip
+**/*.zip
 .DS_store
 config/*
+**/vendor
+**/.terraform
+**/*.tfplan
