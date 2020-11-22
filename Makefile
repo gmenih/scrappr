@@ -1,11 +1,14 @@
+gcp_project="my-project"
+gcp_region="europe-west1"
+
 env = \
-	GOOGLE_CLOUD_PROJECT="my-project" \
+	GOOGLE_CLOUD_PROJECT=$(gcp_project) \
 	GOOGLE_APPLICATION_CREDENTIALS="./config/google-key.json" \
 	SPREADSHEET_ID="your-spreadsheet-id"
 
 tf_env = \
-	TF_VAR_gcp_project="my-project" \
-	TF_VAR_gcp_region="europe-west1" \
+	TF_VAR_gcp_project=$(gcp_project) \
+	TF_VAR_gcp_region=$(gcp_region) \
 	TF_VAR_gcp_config_file="$(realpath .)/config/terraform-key.json"
 
 SHELL := /bin/zsh
@@ -32,11 +35,13 @@ build: clean
 		zip ../index.zip -r ./*
 	rm -r ./dist/tmp
 
+tf-init:
+	cd terraform && terraform init
+
 tf-plan:
 	@echo "Generating TF plan"
 	cd terraform && \
 		$(tf_env) terraform plan -out plan.tfplan
-	@cd -
 
 tf-apply:
 	cd terraform && \

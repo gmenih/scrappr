@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	p "github.com/gmenih341/scrappr/src/functions"
+	p "github.com/gmenih341/scrappr/src"
 	"github.com/gmenih341/scrappr/src/scrape"
 )
 
