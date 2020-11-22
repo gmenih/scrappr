@@ -47,3 +47,4 @@ tf-apply:
 	cd terraform && \
 		terraform apply ./plan.tfplan
 
+deploy: build tf-init tf-plan tf-apply
