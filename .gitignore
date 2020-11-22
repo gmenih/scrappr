@@ -3,4 +3,6 @@
 config/*
 **/vendor
 **/.terraform
-**/*.tfplan
+**/*.tfplan*
+**/*.tfstate*
+dist/*

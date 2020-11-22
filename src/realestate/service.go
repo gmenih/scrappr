@@ -16,13 +16,12 @@ type service struct {
 }
 
 func NewService(ctx context.Context) *service {
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	projectID := os.Getenv("GCP_PROJECT")
 	logrus.Infof("Running in project %s", projectID)
 
 	dsClient, err := datastore.NewClient(ctx, projectID)
-
 	if err != nil {
-		logrus.Fatalf("Failed to create sheets client. Err: %v", err)
+		logrus.Fatalf("Failed to create datastore client. Err: %v", err)
 	}
 
 	return &service{dsClient, ctx}

@@ -1,7 +1,11 @@
+resource "random_id" "function_id" {
+  byte_length = 4  
+}
+
 resource "google_storage_bucket_object" "function_source" {
-  name   = "index.zip"
+  name   = "index_${random_id.function_id.hex}.zip"
   bucket = google_storage_bucket.function_source.name
-  source = "../dist/"
+  source = "../dist/index.zip"
 }
 
 resource "google_cloudfunctions_function" "scrape_function" {
