@@ -2,6 +2,8 @@
 
 Nepremicnine scarper orchestrated by Terraform, running on GCP.
 
+> This no longer works since Nepremicnine started using Cloudflare Bot Protection :'(
+
 ## Setting it up
 
 ### GCP Console
